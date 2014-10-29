@@ -40,6 +40,11 @@ int sound = 0; //sound value to use
 int soundAve = 0;
 int soundCounter = 0;
 
+//new microphone variables
+int runningAve = 0;
+int startupCount = 10;
+int peakHeight = 200;
+
 //button variables
 boolean previousHigh = false;
 
@@ -47,6 +52,7 @@ boolean previousHigh = false;
 int rawLight = 0;
 int light = 0;
 int rawLightAve = 0;
+int flickerTimer = 0;
 
 void setup() {
   pinMode(led1, OUTPUT);
@@ -71,7 +77,7 @@ void loop() {
     if (previousHigh == true) {
       previousHigh = false;
       //increments the state (or loops around if it reaches the end)
-      if (state == 2) {
+      if (state == 3) {
         state = 0;
       }
       else {
@@ -81,7 +87,13 @@ void loop() {
   }
   
   //determines the brightness randomly through the flickerVal() function
-  brightness = flickerVal();
+  if (flickerTimer < 12) {
+    flickerTimer = flickerTimer + 1;
+  }
+  else {
+    flickerTimer = 0;
+    brightness = flickerVal();
+  }
   
   //handles each state's logic
   switch(state) {
@@ -95,6 +107,9 @@ void loop() {
     
       //makes both LEDs flicker
       updateLights(brightness, brightness);
+      
+      //resets the state variables for the music listener startup sequence
+      startupCount = 10;
       break;
     
     case 2: //music listener
@@ -133,12 +148,38 @@ void loop() {
       
       */
       
-      rawSound = analogRead(mic);
-      sound = rawSound - 200; //sound sets the boundary for a loud enough sound to justify turning on the lights
       
+      rawSound = abs(analogRead(mic)); //reads in the raw sound input
+      if (rawSound > peakHeight) { //if the sound is greater than the peak height it will subtract, otherwise the sound is too low to use
+        sound = rawSound - peakHeight;
+      }
+      else {
+        sound = 0;
+      }
+      //if it is no longer starting up go here
+      if (startupCount == 0) {
+        if (sound >= runningAve) { //if the rawSound - peakHeight is greater than the average, then it turns on the lights
+          updateLights(255, 255);
+        }
+        else { //otherwise it shuts off the lights
+          updateLights(0,0);
+        }
+        runningAve = (rawSound + runningAve)/2; //updates the running average regardless
+      }
+      //repeats startupCount times to get a running average when the state first begins and leaves the lights off
+      else {
+        runningAve = (rawSound + runningAve)/2; //calculates the running average
+        startupCount = startupCount - 1; //decrements startupCount
+        updateLights(0,0); //turns off the lights
+      }
+      
+      /*
+      rawSound = analogRead(mic);
+      sound = abs(rawSound - 200); //sound sets the boundary for a loud enough sound to justify turning on the lights
+
       if (sound > soundAve) {
         
-        if ((sound - 150) > soundAve) {
+        if ((sound - 100) > soundAve) {
           updateLights(255, 255);
         }
         else {
@@ -146,49 +187,14 @@ void loop() {
         }
         
       }
+      
       //if the sound is not an outlier (ie it is not much greater than the average)
       //then sum the average and the new sound and divide by 2 to get the new average
-      else {
-        updateLights(0, 0);
-        
-        soundAve = (soundAve + rawSound)/2;
+      else if ((sound - 50) < soundAve) {
+        updateLights(0,0);
+        //soundAve = (soundAve + rawSound)/2;
       }
       
-      
-      /*
-      rawAve = 0;
-      for(int i = 0; i < 4; i++) {
-        rawSound = analogRead(mic);
-        rawAve = rawAve + rawSound;
-      }
-      rawAve = rawAve/4;
-      sound = abs(rawAve - 750);
-      //uses different sound values to change the LEDs. Each LED has 4 brightness levels making 8 total states
-      //LEVELS: 223 (2on 100%), 191(2on, 1 75%), 159(2on 1 50%), 127(1on 100%), 95(1on 75%), 63(1on 50%), 31, 0
-      if (sound > 500) {
-        analogWrite(led1, 255);
-        analogWrite(led2, 255);
-      }
-      else if (sound > 400 && sound < 450) {
-        analogWrite(led1, 255);
-        analogWrite(led2, 192);
-      }
-      else if (sound > 300 && sound < 350) {
-        analogWrite(led1, 255);
-        analogWrite(led2, 128);
-      }
-      else if (sound > 200 && sound < 250) {
-        analogWrite(led1, 255);
-        analogWrite(led2, 0);
-      }
-      else if (sound > 100 && sound < 150) {
-        analogWrite(led1, 192);
-        analogWrite(led2, 0);
-      }
-      else if (sound < 50) {
-        analogWrite(led1, 0);
-        analogWrite(led2, 0);
-      }
       
       */
       break;
@@ -208,7 +214,7 @@ void loop() {
   }
   
   //delays for a short time
-  delay(20);
+  delay(5);
 }
 
 //outputs a random value for the flicker
@@ -243,13 +249,13 @@ void updateLights(int L1_val, int L2_val) {
     analogWrite(led1, L1_val);
   }
   else {
-    digitalWrite(led1, LOW);
+    analogWrite(led1, 0);
   }
   
   if (L2_val < 256 && L2_val >= 0) {
     analogWrite(led2, L2_val);
   }
   else {
-    digitalWrite(led2, LOW);
+    analogWrite(led2, 0);
   }
 }
