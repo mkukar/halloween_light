@@ -1,4 +1,4 @@
-//Pumpkin Light Show v1.0
+//Pumpkin Light Show v1.1
 //Michael Kukar
 //October 2014
 //Project #001
@@ -13,7 +13,7 @@ Outputs to two LEDs controlled over PWM
 Button switches between the different states incrementally
 State 1: 1 LED flickering
 State 2: 2 LEDs flickering in sync
-State 3: 2 LEDs react to music or sound
+State 3: 2 LEDs react to music or sound (makes both LEDs on HIGH)
 State 4: Lights only turn on when it is dark in the room, then uses state 2 logic (flickers both LEDs)
 
 */
@@ -59,9 +59,7 @@ void setup() {
   pinMode(led2, OUTPUT);
   pinMode(button, INPUT);
   randomSeed(analogRead(2)); //generates a random seed from pin 2 input
-  ambientAve = ambientSoundVal(); //saves the average sound value of the ambience
-  soundAve = ambientAve;
-  delay(300); //delays enough to give the ambientSoundVal() function enough time to load values and everything to stabilize
+  delay(250); //delays a slight bit for startup
 }
 
 void loop() {
@@ -87,6 +85,7 @@ void loop() {
   }
   
   //determines the brightness randomly through the flickerVal() function
+  //only updates every 12 * 5ms = 60ms for an even, candle-like flicker (if its too fast it looks artificial)
   if (flickerTimer < 12) {
     flickerTimer = flickerTimer + 1;
   }
@@ -113,42 +112,7 @@ void loop() {
       break;
     
     case 2: //music listener
-    
-      /*
-      new idea for sound average. THIS WORKS DECENTLY, NOT GREAT
-      1. calculate generic average sound value
-      2. compare that sound value to average
-      3. if the new sound is like, say 100 greater than the average, light up.
-      4. otherwise, don't
-      */
-      
-      /*
-      rawSound = analogRead(mic);
-      if ((rawSound - 300) > ambientAve) {
-        digitalWrite(led1, HIGH);
-        digitalWrite(led2, HIGH);
-      }
-      else if ((rawSound - 150) > ambientAve) {
-        digitalWrite(led1, HIGH);
-        digitalWrite(led2, LOW);
-      }
-      else {
-        digitalWrite(led1, LOW);
-        digitalWrite(led2, LOW);
-      }
-      
-      */
-      
-      /*
-      Alternate Idea:
-      Running total of the ambient sound to get an accurate average
-      If there is an outlyer, handle lighting up the LEDs
-      If there isn't an outlier, then it should save the value in the running total
-      When the running total matrix gets too large, then save the last average and go again (shouldn't have any wrap-around errors anyways)
-      
-      */
-      
-      
+
       rawSound = abs(analogRead(mic)); //reads in the raw sound input
       if (rawSound > peakHeight) { //if the sound is greater than the peak height it will subtract, otherwise the sound is too low to use
         sound = rawSound - peakHeight;
@@ -172,31 +136,7 @@ void loop() {
         startupCount = startupCount - 1; //decrements startupCount
         updateLights(0,0); //turns off the lights
       }
-      
-      /*
-      rawSound = analogRead(mic);
-      sound = abs(rawSound - 200); //sound sets the boundary for a loud enough sound to justify turning on the lights
 
-      if (sound > soundAve) {
-        
-        if ((sound - 100) > soundAve) {
-          updateLights(255, 255);
-        }
-        else {
-          updateLights(255, 0);
-        }
-        
-      }
-      
-      //if the sound is not an outlier (ie it is not much greater than the average)
-      //then sum the average and the new sound and divide by 2 to get the new average
-      else if ((sound - 50) < soundAve) {
-        updateLights(0,0);
-        //soundAve = (soundAve + rawSound)/2;
-      }
-      
-      
-      */
       break;
       
     case 3: //only turns on in a dark room
@@ -213,7 +153,7 @@ void loop() {
      
   }
   
-  //delays for a short time
+  //delays for a short time, fast enough so the sound can be heard and it can react to it without a visible delay
   delay(5);
 }
 
@@ -222,20 +162,6 @@ int flickerVal() {
   int flickerVal = 255; //sets base rate to 255 (max value)
   flickerVal = flickerVal - random(160); //subtracts a random number from 1 - 160 (gives a nice contrast at this range)
   return flickerVal; //outputs the flicker value
-}
-
-//outputs the ambient sound level
-int ambientSoundVal() {
-  int ambientSoundVal = 0;
-  int soundIn = 0;
-  //sums the sound input and then divides it to get the average over 25 readings
-  for(int i = 0; i < 25; i++) {
-    soundIn = analogRead(mic);
-    ambientSoundVal = ambientSoundVal + soundIn;
-    delay(10);
-  }
-  ambientSoundVal = ambientSoundVal / 25; 
-  return ambientSoundVal;
 }
 
 //Updates the LEDs in a convenient function
