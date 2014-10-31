@@ -86,7 +86,7 @@ void loop() {
   
   //determines the brightness randomly through the flickerVal() function
   //only updates every 12 * 5ms = 60ms for an even, candle-like flicker (if its too fast it looks artificial)
-  if (flickerTimer < 12) {
+  if (flickerTimer < 30) {
     flickerTimer = flickerTimer + 1;
   }
   else {
@@ -154,7 +154,7 @@ void loop() {
   }
   
   //delays for a short time, fast enough so the sound can be heard and it can react to it without a visible delay
-  delay(5);
+  delay(2);
 }
 
 //outputs a random value for the flicker
